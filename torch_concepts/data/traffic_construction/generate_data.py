@@ -137,6 +137,7 @@ def make_intersection_sample(
     light_scale=1.5,
     ambulance_sprite=AMBULANCE,
     use_lights_sprites=False,
+    extended_traffic_light_options=False,
 ):
     if possible_starting_directions is None:
         crossing_lanes = [x for x in available_lanes if x['before_int']]
@@ -223,58 +224,61 @@ def make_intersection_sample(
         inplace=inplace,
     )
 
-    # Decide which direction the traffic light is set:
+    # Decide the state of each of the 4 traffic lights: 0=green, 1=yellow, 2=red
+    # Convention: [car_of_interest, right, opposite, left]
+    # Map directions to indices: 0=west, 1=north, 2=east, 3=south
+    dir_map = ['west', 'north', 'east', 'south']
+    car_dir = selected_lane['dir']
+    car_idx = dir_map.index(car_dir)
+    # Compute the order: [car, right, opposite, left]
+    order = [car_idx, (car_idx+1)%4, (car_idx+2)%4, (car_idx+3)%4]
+
     force_law_break = np.random.choice(
         [True, False],
         p=[error_probability, 1-error_probability]
     )
+    force_law_break = 0
+    # Build light_colours in direction order (west, north, east, south)
+    light_colours_dir = [2,2,2,2]
+
     if force_law_break:
-        green_in_favour = True
+        light_colours_dir[car_idx] = 0
     else:
-        green_in_favour = np.random.choice([False, True])
-    sample_meta['green'] = green_in_favour
-    if selected_lane['dir'] in ['east', 'west']:
-        flow_directions = (
-            ['east', 'west']
-            if green_in_favour else ['north', 'south']
-        )
-        result_image = add_light_x_axis(
-            result_image,
-            green=green_in_favour,
-            ratio=resize_final_image,
-            inplace=inplace,
-            light_scale=light_scale,
-            use_lights_sprites=use_lights_sprites,
-        )
-        result_image = add_light_y_axis(
-            result_image,
-            green=(not green_in_favour),
-            ratio=resize_final_image,
-            inplace=inplace,
-            light_scale=light_scale,
-            use_lights_sprites=use_lights_sprites,
-        )
-    else:
-        flow_directions = (
-            ['north', 'south']
-            if green_in_favour else ['east', 'west']
-        )
-        result_image = add_light_y_axis(
-            result_image,
-            green=green_in_favour,
-            ratio=resize_final_image,
-            inplace=inplace,
-            light_scale=light_scale,
-            use_lights_sprites=use_lights_sprites,
-        )
-        result_image = add_light_x_axis(
-            result_image,
-            green=(not green_in_favour),
-            ratio=resize_final_image,
-            inplace=inplace,
-            light_scale=light_scale,
-            use_lights_sprites=use_lights_sprites,
-        )
+        if extended_traffic_light_options:
+            # Allow 0, 1, or 2 green lights (all red, one green, or two green)
+            number_green = np.random.choice([0, 1, 2])
+        else:
+            number_green = 2
+        if number_green == 1:
+            green_dir = random.choice([0]) #, 1, 2, 3])
+            light_colours_dir[green_dir] = 0
+        elif number_green == 2:
+            green_dir = random.choice([0, 1, 2, 3])
+            light_colours_dir[green_dir] = 0
+            light_colours_dir[(green_dir + 2) % 4] = 0
+        # if number_green == 0: all stay red
+
+    # Now build light_colours in [car, right, opposite, left] order
+    light_colours = [light_colours_dir[i] for i in order]
+    sample_meta['green'] = light_colours
+    sample_meta['green_dir_order'] = light_colours_dir  # for debugging/inspection
+    sample_meta['green_order'] = order
+    result_image = add_light_x_axis(
+        result_image,
+        green=light_colours,
+        ratio=resize_final_image,
+        inplace=inplace,
+        light_scale=light_scale,
+        use_lights_sprites=use_lights_sprites,
+    )
+    result_image = add_light_y_axis(
+        result_image,
+        green=light_colours,
+        ratio=resize_final_image,
+        inplace=inplace,
+        light_scale=light_scale,
+        use_lights_sprites=use_lights_sprites,
+    )
 
     # Now add other cars:
     free_lanes = [
@@ -289,14 +293,17 @@ def make_intersection_sample(
     else:
         num_selected_cars = 0
     if force_law_break:
-        # Then make sure at least one other car breaking the law is included
+        # At least one other car breaking the law (i.e., in a direction with red light)
         num_selected_cars = max(num_selected_cars, 1)
-        # And we will explicitly force the first one to be the law breaker!
+        # Find directions with red light (index 2) in dir_map order
+        red_dirs = [dir_map[i] for i, val in enumerate(light_colours_dir) if val == 2]
+        # Pick one lane with a red light
         other_lanes = list(np.random.choice(
-            [x for x in free_lanes if x['dir'] not in flow_directions],
+            [x for x in free_lanes if x['dir'] in red_dirs],
             1,
             replace=False,
         ))
+        # Fill the rest randomly
         other_lanes += list(np.random.choice(
             [x for x in free_lanes if x['idx'] != other_lanes[0]['idx']],
             num_selected_cars - 1,
@@ -363,29 +370,36 @@ def make_intersection_sample(
                     used_para_noise_top = 500
             forbidden_dirs.add(other_lane['dir'])
 
-        elif (other_lane['dir'] not in flow_directions) and (
-            force_law_break and (not per_intersection_occupied)
-        ):
-            if other_lane['before_int']:
-                if other_lane['dir'] in ['east', 'south']:
-                    used_para_noise_bottom = 300
-                    used_para_noise_top = 400
+        elif (force_law_break and (not per_intersection_occupied)):
+            # If this lane is breaking the law (i.e., red light), use large offset
+            lane_idx = dir_map.index(other_lane['dir']) if other_lane['dir'] in dir_map else -1
+            if lane_idx != -1 and light_colours_dir[lane_idx] == 2:
+                if other_lane['before_int']:
+                    if other_lane['dir'] in ['east', 'south']:
+                        used_para_noise_bottom = 300
+                        used_para_noise_top = 400
+                    else:
+                        used_para_noise_bottom = -500
+                        used_para_noise_top = -400
                 else:
-                    used_para_noise_bottom = -500
-                    used_para_noise_top = -400
+                    if other_lane['dir'] in ['east', 'south']:
+                        used_para_noise_bottom = -500
+                        used_para_noise_top = -400
+                    else:
+                        used_para_noise_bottom = 300
+                        used_para_noise_top = 400
             else:
-                if other_lane['dir'] in ['east', 'south']:
-                    used_para_noise_bottom = -500
-                    used_para_noise_top = -400
-                else:
-                    used_para_noise_bottom = 300
-                    used_para_noise_top = 400
-        elif other_lane['dir'] in flow_directions and (
-            not per_intersection_occupied
-        ):
-            # Then the car can actually be in the middle of the lane!
-            used_para_noise_bottom = -50
-            used_para_noise_top = 600
+                used_para_noise_bottom = -position_para_noise
+                used_para_noise_top = position_para_noise + 1
+        elif (not per_intersection_occupied):
+            # If this lane has green or yellow, allow normal offset
+            lane_idx = dir_map.index(other_lane['dir']) if other_lane['dir'] in dir_map else -1
+            if lane_idx != -1 and light_colours_dir[lane_idx] in [0, 1]:
+                used_para_noise_bottom = -50
+                used_para_noise_top = 600
+            else:
+                used_para_noise_bottom = -position_para_noise
+                used_para_noise_top = position_para_noise + 1
         else:
             # Else we do a very small fluctuation within the lane before or
             # after the intersection
@@ -501,7 +515,9 @@ def create_sample(in_multi, as_arrays=None, seed=None):
         as_arrays = config.get('as_arrays', False)
 
     if seed is not None:
+        seed = int(seed)
         new_seed = seed + idx
+        new_seed = int(new_seed) 
         random.seed(new_seed)
         np.random.seed(new_seed)
 
@@ -527,6 +543,7 @@ def create_sample(in_multi, as_arrays=None, seed=None):
         background=INTERSECTION,
         cars=cars_to_use,
         available_lanes=AVAILABLE_LANES,
+        extended_traffic_light_options=config["extended_traffic_light_options"],
 
     )
     if as_arrays:
@@ -586,6 +603,11 @@ def construct_samples(
 
 
 def parse_args():
+    parser.add_argument(
+        "--extended_traffic_light_options",
+        action="store_true",
+        help="If set, enables extended traffic light options (e.g., 0, 1, or 2 green lights per intersection).",
+    )
     parser = argparse.ArgumentParser(
         description="Generate synthetic data for traffic simulation"
     )
@@ -825,6 +847,7 @@ if __name__ == "__main__":
         thickness=args.thickness,
         light_scale=args.light_scale,
         use_lights_sprites=args.use_lights_sprites,
+        extended_traffic_light_options=args.extended_traffic_light_options,
 
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,

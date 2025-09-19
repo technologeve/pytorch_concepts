@@ -29,6 +29,7 @@ GREEN_LIGHT = mpimg.imread(LIGHTS_FILE)
 GREEN_LIGHT = GREEN_LIGHT[:, 2*GREEN_LIGHT.shape[1]//3:, :]
 
 LIGHTS = [GREEN_LIGHT, YELLOW_LIGHT, RED_LIGHT]
+# Convention: 0=green, 1=yellow, 2=red
 
 _LEFT_TOP_CORNER = (400, 400)
 _LEFT_BOTTOM_CORNER = (400, 860)
@@ -88,6 +89,7 @@ def add_circle_to_image(
 ################################################################################
 
 
+
 def add_light_x_axis(
     img,
     green,
@@ -98,9 +100,14 @@ def add_light_x_axis(
     use_lights_sprites=False,
     thickness=10,
 ):
+    # green: array of 4 indices, each 0=green, 1=yellow, 2=red, for each direction
+    # Convention: [car_of_interest, right, opposite, left]
+    # For x axis: left=west, right=east
+    # Place two lights: left (west) and right (east)
+    # left (west) = index 0, right (east) = index 2
     if use_lights_sprites:
-        # Then let's use the light sprite
-        light = LIGHTS[0] if green else LIGHTS[-1]
+        # West (left, car of interest)
+        light = LIGHTS[green[0]]
         x_offset, y_offset = 330, 850
         x_scale_shift, y_scale_shift = 0, 0
         if light_scale != 1:
@@ -127,6 +134,8 @@ def add_light_x_axis(
             y_offset=y_offset,
             inplace=inplace,
         )
+        # East (opposite)
+        light = LIGHTS[green[2]]
         x_offset, y_offset = 840, 360
         x_scale_shift, y_scale_shift = 0, 0
         if light_scale != 1:
@@ -150,9 +159,10 @@ def add_light_x_axis(
             inplace=inplace,
         )
         return img
-    # Else, we will build a simple circule with the given radius to the image
+    # Circles
     r = int(circle_radius * ratio * light_scale)
-    color = (0, 1, 0, 1) if green else (1, 0, 0, 1)
+    # West (left, car of interest)
+    color = [(0, 1, 0, 1), (1, 1, 0, 1), (1, 0, 0, 1)][green[0]]
     x_offset, y_offset = _LEFT_BOTTOM_CORNER
     if ratio != 1:
         x_offset, y_offset = utils.transform_scale_coordinates(
@@ -160,7 +170,6 @@ def add_light_x_axis(
             y_offset,
             ratio=ratio,
         )
-
     img = add_circle_to_image(
         background=img,
         center=(x_offset - r, y_offset + r),
@@ -170,7 +179,8 @@ def add_light_x_axis(
         vector_angle=0,
         thickness=max(1, int(thickness * ratio)),
     )
-
+    # East (opposite)
+    color = [(0, 1, 0, 1), (1, 1, 0, 1), (1, 0, 0, 1)][green[2]]
     x_offset, y_offset = _RIGHT_TOP_CORNER
     if ratio != 1:
         x_offset, y_offset = utils.transform_scale_coordinates(
@@ -190,6 +200,7 @@ def add_light_x_axis(
     return img
 
 
+
 def add_light_y_axis(
     img,
     green,
@@ -200,9 +211,13 @@ def add_light_y_axis(
     use_lights_sprites=False,
     thickness=10,
 ):
+    # green: array of 4 indices, each 0=green, 1=yellow, 2=red, for each direction
+    # Convention: [car_of_interest, right, opposite, left]
+    # For y axis: top=north, bottom=south
+    # Place two lights: top (north, index 1), bottom (south, index 3)
     if use_lights_sprites:
-        # Then proceed with the light sprite
-        light = LIGHTS[0] if green else LIGHTS[-1]
+        # North (right)
+        light = LIGHTS[green[1]]
         x_offset, y_offset = 850, 850
         x_scale_shift, y_scale_shift = 0, 0
         if light_scale != 1:
@@ -229,6 +244,8 @@ def add_light_y_axis(
             y_offset=y_offset,
             inplace=inplace,
         )
+        # South (left)
+        light = LIGHTS[green[3]]
         x_offset, y_offset = 370, 300
         if ratio != 1:
             x_offset, y_offset = utils.transform_scale_coordinates(
@@ -252,10 +269,10 @@ def add_light_y_axis(
             inplace=inplace,
         )
         return img
-
-    # Else, we will build a simple circule with the given radius to the image
+    # Circles
     r = int(circle_radius * ratio * light_scale)
-    color = (0, 1, 0, 1) if green else (1, 0, 0, 1)
+    # North (right)
+    color = [(0, 1, 0, 1), (1, 1, 0, 1), (1, 0, 0, 1)][green[1]]
     x_offset, y_offset = _LEFT_TOP_CORNER
     if ratio != 1:
         x_offset, y_offset = utils.transform_scale_coordinates(
@@ -263,7 +280,6 @@ def add_light_y_axis(
             y_offset,
             ratio=ratio,
         )
-
     img = add_circle_to_image(
         background=img,
         center=(x_offset - r, y_offset - r),
@@ -273,7 +289,8 @@ def add_light_y_axis(
         vector_angle=270,
         thickness=max(1, int(thickness * ratio)),
     )
-
+    # South (left)
+    color = [(0, 1, 0, 1), (1, 1, 0, 1), (1, 0, 0, 1)][green[3]]
     x_offset, y_offset = _RIGHT_BOTTOM_CORNER
     if ratio != 1:
         x_offset, y_offset = utils.transform_scale_coordinates(
