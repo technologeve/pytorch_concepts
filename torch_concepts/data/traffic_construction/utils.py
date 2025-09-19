@@ -34,7 +34,7 @@ def resize_with_aspect_ratio(img, target_width=None, target_height=None):
         return img
 
     # Resize the image
-    resized_img = pil_img.resize((new_width, new_height), Image.ANTIALIAS)
+    resized_img = pil_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
     # Convert back to NumPy array and normalize to [0, 1]
     resized_img = np.array(resized_img) / 255.0
