@@ -336,9 +336,11 @@ def make_intersection_sample(
     final_other_cars = []
     final_other_lanes = []
     
-    # Create binary mask for ambulance (single channel)
+    # Create concept masks
     height, width = result_image.shape[:2]
+
     ambulance_mask = np.zeros((height, width), dtype=np.uint8)
+    perp_car_mask = np.zeros((height, width), dtype=np.uint8)
     
     for other_lane, other_car in zip(other_lanes, other_cars):
         new_car = other_car['img']
@@ -496,6 +498,11 @@ def make_intersection_sample(
         if other_car['ambulance']:
             ambulance_mask = np.bitwise_or(ambulance_mask.astype(np.uint8), mask.astype(np.uint8))
 
+        # Car in intersection perpendicular to selected car
+        if (not other_car['ambulance']) and (_are_perp(other_lane['dir'], selected_lane['dir'])) and (other_car_meta['in_intersection']):
+            print("TRUE")
+            perp_car_mask = np.bitwise_or(perp_car_mask.astype(np.uint8), mask.astype(np.uint8))
+
     sample_meta['other_cars'] = final_other_cars
     sample_meta['other_car_lanes'] = final_other_lanes
 
@@ -509,6 +516,9 @@ def make_intersection_sample(
     # And save it after also resizing it
     sample_meta['img'] = result_image
     sample_meta["ambulance_mask"] = ambulance_mask
+    sample_meta["perp_car_mask"] = perp_car_mask
+    # sample_meta["perp_amb_mask"] = perp_amb_mask
+    
     return sample_meta
 
 
