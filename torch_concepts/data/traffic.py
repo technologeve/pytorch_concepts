@@ -365,6 +365,17 @@ class TrafficLights(Dataset):
     def __len__(self):
         return len(self.split_array_map)
 
+    @property
+    def sample_metadata(self):
+        """Get metadata for all samples in the current split."""
+        if not hasattr(self, '_cached_metadata'):
+            self._cached_metadata = []
+            for idx in range(len(self)):
+                real_idx = self.split_array_map[idx]
+                _, metadata = self.sample_array(real_idx)
+                self._cached_metadata.append(metadata)
+        return self._cached_metadata
+
     def __getitem__(self, idx):
         real_idx = self.split_array_map[idx]
         img, sample_meta = self.sample_array(real_idx)

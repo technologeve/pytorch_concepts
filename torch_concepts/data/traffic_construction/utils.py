@@ -57,11 +57,16 @@ def add_sprite(
         target_height=target_height,
     )
     sprite = rotate(sprite, angle=rotation, reshape=True)
+    
+    # For adding sprite
     if inplace:
         canvas = background[:, :, :3]
     else:
         canvas = np.zeros((background.shape[0], background.shape[1], 3))
         canvas[:] = background[:, :, :3]
+
+    # For adding mask
+    mask = np.zeros((canvas.shape[0], canvas.shape[1]), dtype=np.uint8)
 
     # Calculate the position to center img2 on the canvas
     x_offset = (
@@ -105,10 +110,12 @@ def add_sprite(
             sprite[y_sprite_start:y_sprite_end, x_sprite_start:x_sprite_end, :3] * alpha[y_sprite_start:y_sprite_end, x_sprite_start:x_sprite_end, :] +
             canvas[y_offset:(eff_height + y_offset), x_offset:(eff_width + x_offset), :] * (1 - alpha[y_sprite_start:y_sprite_end, x_sprite_start:x_sprite_end, :3])
         )
+        mask[y_offset:(eff_height + y_offset),
+            x_offset:(eff_width + x_offset)] = 1
     if inplace:
         canvas[:] = np.clip(canvas, 0, 1)
-        return canvas
-    return np.clip(canvas, 0, 1)
+        return canvas, mask
+    return np.clip(canvas, 0, 1), mask
 
 
 

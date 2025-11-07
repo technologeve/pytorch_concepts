@@ -214,7 +214,7 @@ def make_intersection_sample(
     )
 
     selected_car['position'] = (cross_x_offset, cross_y_off)
-    result_image = utils.add_sprite(
+    result_image, mask = utils.add_sprite(
         sprite=cross_car,
         background=result_image,
         rotation=cross_rot,
@@ -330,16 +330,26 @@ def make_intersection_sample(
         ]
     sample_meta['perp_intersection_occupied'] = False
     sample_meta['perp_incoming_ambulance'] = False
+    sample_meta['ambulance_seen'] = False  # Initialize ambulance tracking
     per_intersection_occupied = False
     forbidden_dirs = set()
     final_other_cars = []
     final_other_lanes = []
+    
+    # Create binary mask for ambulance (single channel)
+    height, width = result_image.shape[:2]
+    ambulance_mask = np.zeros((height, width), dtype=np.uint8)
+    
     for other_lane, other_car in zip(other_lanes, other_cars):
         new_car = other_car['img']
         other_car_meta = {
             key: val
             for (key, val) in other_car.items() if key != 'img'
         }
+        # Track if this car is an ambulance
+        if other_car.get('ambulance', False):
+            sample_meta['ambulance_seen'] = True
+            
         new_lane, new_rot, new_x_off, new_y_off = \
             other_lane['bounds'], other_lane['rot'], \
                 other_lane['x_off'], other_lane['y_off']
@@ -472,7 +482,7 @@ def make_intersection_sample(
         other_car_meta['position'] = (new_x_offset, new_y_offset)
         other_car_meta['breaking_law'] = car_breaking_law
         other_car_meta['lane_idx'] = other_lane['idx']
-        result_image = utils.add_sprite(
+        result_image, mask = utils.add_sprite(
             sprite=new_car,
             background=result_image,
             rotation=new_rot,
@@ -483,6 +493,8 @@ def make_intersection_sample(
         )
         final_other_cars.append(other_car_meta)
         final_other_lanes.append(other_lane)
+        if other_car['ambulance']:
+            ambulance_mask = np.bitwise_or(ambulance_mask.astype(np.uint8), mask.astype(np.uint8))
 
     sample_meta['other_cars'] = final_other_cars
     sample_meta['other_car_lanes'] = final_other_lanes
@@ -496,10 +508,11 @@ def make_intersection_sample(
         sample_meta['action'] = 'stop'
     # And save it after also resizing it
     sample_meta['img'] = result_image
+    sample_meta["ambulance_mask"] = ambulance_mask
     return sample_meta
 
 
-################################################################################
+#################################
 ## Wrapper for multiprocessing!
 ################################################################################
 
