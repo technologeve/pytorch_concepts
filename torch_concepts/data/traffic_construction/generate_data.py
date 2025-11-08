@@ -308,11 +308,11 @@ def make_intersection_sample(
     if car_dir == "north":
         light_mask = south_mask
     elif car_dir == "east":
-        light_mask = west_mask
+        light_mask = east_mask
     elif car_dir == "south":
         light_mask = north_mask
     elif car_dir == "west":
-        light_mask = east_mask
+        light_mask = west_mask
     else:
         return KeyError(f"Car direction {car_dir} not supported.")
 
