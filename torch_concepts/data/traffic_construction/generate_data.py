@@ -263,7 +263,7 @@ def make_intersection_sample(
     sample_meta['green'] = light_colours
     sample_meta['green_dir_order'] = light_colours_dir  # for debugging/inspection
     sample_meta['green_order'] = order
-    result_image = add_light_x_axis(
+    result_image, west_mask, east_mask = add_light_x_axis(
         result_image,
         green=light_colours,
         ratio=resize_final_image,
@@ -271,7 +271,7 @@ def make_intersection_sample(
         light_scale=light_scale,
         use_lights_sprites=use_lights_sprites,
     )
-    result_image = add_light_y_axis(
+    result_image, north_mask, south_mask = add_light_y_axis(
         result_image,
         green=light_colours,
         ratio=resize_final_image,
@@ -279,6 +279,26 @@ def make_intersection_sample(
         light_scale=light_scale,
         use_lights_sprites=use_lights_sprites,
     )
+    
+    # Create concept masks
+    height, width = result_image.shape[:2]
+
+    ambulance_mask = np.zeros((height, width), dtype=np.uint8)
+    perp_car_mask = np.zeros((height, width), dtype=np.uint8)
+    perp_amb_mask = np.zeros((height, width), dtype=np.uint8)
+    light_mask = np.zeros((result_image.shape[0], result_image.shape[1]), dtype=np.uint8)
+    
+    # Add light masks
+    if car_dir == "north":
+        light_mask = south_mask
+    elif car_dir == "east":
+        light_mask = west_mask
+    elif car_dir == "south":
+        light_mask = north_mask
+    elif car_dir == "west":
+        light_mask = east_mask
+    else:
+        return KeyError(f"Car direction {car_dir} not supported.")
 
     # Now add other cars:
     free_lanes = [
@@ -335,12 +355,6 @@ def make_intersection_sample(
     forbidden_dirs = set()
     final_other_cars = []
     final_other_lanes = []
-    
-    # Create concept masks
-    height, width = result_image.shape[:2]
-
-    ambulance_mask = np.zeros((height, width), dtype=np.uint8)
-    perp_car_mask = np.zeros((height, width), dtype=np.uint8)
     
     for other_lane, other_car in zip(other_lanes, other_cars):
         new_car = other_car['img']
@@ -500,8 +514,11 @@ def make_intersection_sample(
 
         # Car in intersection perpendicular to selected car
         if (not other_car['ambulance']) and (_are_perp(other_lane['dir'], selected_lane['dir'])) and (other_car_meta['in_intersection']):
-            print("TRUE")
             perp_car_mask = np.bitwise_or(perp_car_mask.astype(np.uint8), mask.astype(np.uint8))
+
+        # Ambulance approaching perpendicular to selected car
+        if (other_car['ambulance']) and (_are_perp(other_lane['dir'], selected_lane['dir'])) and (sample_meta['perp_incoming_ambulance']):
+            perp_amb_mask = np.bitwise_or(perp_amb_mask.astype(np.uint8), mask.astype(np.uint8))
 
     sample_meta['other_cars'] = final_other_cars
     sample_meta['other_car_lanes'] = final_other_lanes
@@ -515,10 +532,12 @@ def make_intersection_sample(
         sample_meta['action'] = 'stop'
     # And save it after also resizing it
     sample_meta['img'] = result_image
+    
+    # Save the masks
     sample_meta["ambulance_mask"] = ambulance_mask
     sample_meta["perp_car_mask"] = perp_car_mask
-    # sample_meta["perp_amb_mask"] = perp_amb_mask
-    
+    sample_meta["perp_amb_mask"] = perp_amb_mask
+    sample_meta["light_mask"] = light_mask
     return sample_meta
 
 
