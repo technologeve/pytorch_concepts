@@ -305,6 +305,7 @@ def make_intersection_sample(
     light_mask = np.zeros((result_image.shape[0], result_image.shape[1]), dtype=np.uint8)
     
     # Add light masks
+    car_dir = selected_lane['dir']
     if car_dir == "north":
         light_mask = south_mask
     elif car_dir == "east":
