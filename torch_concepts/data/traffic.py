@@ -74,7 +74,6 @@ class TrafficLights(Dataset):
         test_config_override_values=None,
         val_config_override_values=None,
         selected_concepts=None,
-        extended_traffic_light_options=False,
     ):
         self.n_samples = n_samples
         self.train_ratio = train_ratio
@@ -99,8 +98,7 @@ class TrafficLights(Dataset):
             seed=self.seed,
             train_ratio=train_ratio,
             val_ratio=val_ratio,
-            test_ratio=test_ratio,
-            extended_traffic_light_options=extended_traffic_light_options,
+            test_ratio=test_ratio
         )
 
         # Standarize concept names in case they were provided
@@ -327,7 +325,7 @@ class TrafficLights(Dataset):
             float(sample_meta['selected_lane']['idx'] == 1), # [6]
             float(sample_meta['selected_lane']['idx'] == 3), # [7]
             float(sample_meta['selected_lane']['idx'] == 5), # [8]
-            float(sample_meta['green'][0]), # [9]
+            float(sample_meta['green']), # [9]
             float(sample_meta['perp_intersection_occupied']), # [10]
             float(sample_meta['perp_incoming_ambulance']), # [11]
 
