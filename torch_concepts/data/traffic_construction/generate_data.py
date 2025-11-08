@@ -155,18 +155,28 @@ def make_intersection_sample(
         np.ones_like(background_rgb),
         background_rgb,
     )
-    road_mask = np.where(
-        np.concatenate([background_alpha for _ in range(3)], axis=-1) != 0,
-        np.ones_like(background_rgb),
-        background_rgb,
-    )
     # We operate in the downsized space to speed things up when possible!
     result_image = utils.resize_with_aspect_ratio(
         result_image,
         target_height=resize_final_image,
     )
+
+    # Add road mask
+    road_mask = np.where(
+        np.concatenate([background_alpha for _ in range(3)], axis=-1) != 0,
+        np.ones_like(background_rgb),
+        background_rgb,
+    )
     road_mask = utils.resize_with_aspect_ratio(
         road_mask,
+        target_height=resize_final_image,
+    )
+
+    # Add intersection mask
+    intersection_mask = np.zeros_like(background_rgb)
+    intersection_mask[450:815,450:815,:] = 1
+    intersection_mask = utils.resize_with_aspect_ratio(
+        intersection_mask,
         target_height=resize_final_image,
     )
 
@@ -548,6 +558,7 @@ def make_intersection_sample(
     sample_meta["perp_amb_mask"] = perp_amb_mask
     sample_meta["light_mask"] = light_mask
     sample_meta["road_mask"] = road_mask
+    sample_meta["intersection_mask"] = intersection_mask
     return sample_meta
 
 
