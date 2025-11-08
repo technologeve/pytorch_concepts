@@ -593,7 +593,6 @@ def create_sample(in_multi, as_arrays=None, seed=None):
         background=INTERSECTION,
         cars=cars_to_use,
         available_lanes=AVAILABLE_LANES,
-        extended_traffic_light_options=config["extended_traffic_light_options"],
 
     )
     if as_arrays:
@@ -653,11 +652,6 @@ def construct_samples(
 
 
 def parse_args():
-    parser.add_argument(
-        "--extended_traffic_light_options",
-        action="store_true",
-        help="If set, enables extended traffic light options (e.g., 0, 1, or 2 green lights per intersection).",
-    )
     parser = argparse.ArgumentParser(
         description="Generate synthetic data for traffic simulation"
     )
@@ -897,7 +891,6 @@ if __name__ == "__main__":
         thickness=args.thickness,
         light_scale=args.light_scale,
         use_lights_sprites=args.use_lights_sprites,
-        extended_traffic_light_options=args.extended_traffic_light_options,
 
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,
