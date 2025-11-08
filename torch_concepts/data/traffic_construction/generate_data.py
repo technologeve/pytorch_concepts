@@ -242,7 +242,7 @@ def make_intersection_sample(
         inplace=inplace,
     )
 
-    # Decide the state of each of the 4 traffic lights: 0=green, 1=yellow, 2=red
+    # Decide which direction the traffic light is set:
     force_law_break = np.random.choice(
         [True, False],
         p=[error_probability, 1-error_probability]
@@ -332,8 +332,6 @@ def make_intersection_sample(
         # Then make sure at least one other car breaking the law is included
         num_selected_cars = max(num_selected_cars, 1)
         # And we will explicitly force the first one to be the law breaker!
-        red_dirs = [dir_map[i] for i, val in enumerate(light_colours_dir) if val == 2]
-        # Pick one lane with a red light
         other_lanes = list(np.random.choice(
             [x for x in free_lanes if x['dir'] not in flow_directions],
             1,
@@ -412,40 +410,28 @@ def make_intersection_sample(
             forbidden_dirs.add(other_lane['dir'])
 
         elif (other_lane['dir'] not in flow_directions) and (
-                force_law_break and (not per_intersection_occupied)
-            ):
-                if other_lane['before_int']:
-                    if other_lane['dir'] in ['east', 'south']:
-                        used_para_noise_bottom = 300
-                        used_para_noise_top = 400
-                    else:
-                        used_para_noise_bottom = -500
-                        used_para_noise_top = -400
+            force_law_break and (not per_intersection_occupied)
+        ):
+            if other_lane['before_int']:
+                if other_lane['dir'] in ['east', 'south']:
+                    used_para_noise_bottom = 300
+                    used_para_noise_top = 400
                 else:
-                    if other_lane['dir'] in ['east', 'south']:
-                        used_para_noise_bottom = -500
-                        used_para_noise_top = -400
-                    else:
-                        used_para_noise_bottom = 300
-                        used_para_noise_top = 400
-            elif other_lane['dir'] in flow_directions and (
-                not per_intersection_occupied
-            ):
-                # Then the car can actually be in the middle of the lane!
-                used_para_noise_bottom = -50
-                used_para_noise_top = 600
+                    used_para_noise_bottom = -500
+                    used_para_noise_top = -400
             else:
-                used_para_noise_bottom = -position_para_noise
-                used_para_noise_top = position_para_noise + 1
-        elif (not per_intersection_occupied):
-            # If this lane has green or yellow, allow normal offset
-            lane_idx = dir_map.index(other_lane['dir']) if other_lane['dir'] in dir_map else -1
-            if lane_idx != -1 and light_colours_dir[lane_idx] in [0, 1]:
-                used_para_noise_bottom = -50
-                used_para_noise_top = 600
-            else:
-                used_para_noise_bottom = -position_para_noise
-                used_para_noise_top = position_para_noise + 1
+                if other_lane['dir'] in ['east', 'south']:
+                    used_para_noise_bottom = -500
+                    used_para_noise_top = -400
+                else:
+                    used_para_noise_bottom = 300
+                    used_para_noise_top = 400
+        elif other_lane['dir'] in flow_directions and (
+            not per_intersection_occupied
+        ):
+            # Then the car can actually be in the middle of the lane!
+            used_para_noise_bottom = -50
+            used_para_noise_top = 600
         else:
             # Else we do a very small fluctuation within the lane before or
             # after the intersection
