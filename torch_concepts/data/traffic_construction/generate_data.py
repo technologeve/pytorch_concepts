@@ -260,7 +260,7 @@ def make_intersection_sample(
         )
         result_image, west_mask, east_mask = add_light_x_axis(
             result_image,
-            green=light_colours,
+            green=green_in_favour,
             ratio=resize_final_image,
             inplace=inplace,
             light_scale=light_scale,
@@ -268,7 +268,7 @@ def make_intersection_sample(
         )
         result_image, north_mask, south_mask = add_light_y_axis(
             result_image,
-            green=light_colours,
+            green=(not green_in_favour),
             ratio=resize_final_image,
             inplace=inplace,
             light_scale=light_scale,
